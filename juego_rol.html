@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Programando una pagina web</title>
+<style>
+*{
+padding:0px; margin:0px;
+}
+#lienzo{
+border:black solid 3px; position:relative; left:50%; margin-left:-350px;
+margin-bottom:20px;
+}
+.mainBlock{
+width:80%; margin:20px auto; height:550px;
+position:relative; z-index:3;
+}
+header{
+display:block; background:black; height:100px;
+}
+footer{
+display:block; background:black; height:100px;
+}
+input, button{
+padding:5px; margin-left:5px;
+}
+input{
+width:60%;
+}
+.commandBar{
+position:relative; left:50%; margin-left:-350px;
+width:700px;
+}
+pre{
+position:relative; left:50%; margin-left:-350px;
+width:700px;
+}
+#lightBox{
+height:100%;
+width:100%;
+position:absolute; top:0px; left:0px;z-index:5;
+}
+#light{
+height:100%;
+width:100%;
+background:rgba(0,0,0,0.5);
+}
+#box{
+height:500px; width:700px;
+background:white; border:black solid 5px;
+position:absolute; left:60%; top:50%;
+margin-left:-350px; margin-top:-250px;
+}
+.estadisticas{
+position:relative; left:50%; margin-left:-350px;
+margin-bottom:20px; width:700px;
+}
+.enemyNormal{
+height:250px; width:250px; background:red; margin:20px auto;
+}
+.enemyPurple{
+height:250px; width:250px; background:purple; margin:20px auto;
+}
+div#consola{
+position:absolute; width:250px; height:500px; background:white;
+position:absolute; left:10%; top:50%; border:black solid 5px;
+margin-left:-320px; margin-top:-255px; overflow-y:scroll;
+}
+div#consola div{
+margin:10px 20px;
+}
+.nivel, .exp, .vida{
+float:right; width:150px;
+}
+</style>
+</head>
+<body>
+<div id="lightBox" style="display:none;">
+<div id="light">
+<div id="box" style="text-align:center;"><br/>
+Te has topado con un enemigo:<br/><br/>
+Status player: <span id="statusPlayer">100</span><br/>
+Status enemy: <span id="statusEnemy">200</span><br/>
+<div id="enemy" class="enemyNormal"></div>
+<div id="consola"></div>
+<input type="text" id="hitPlayer" disabled></input><br/><br/>
+<button onclick="turno();" id="attack">Atacar</button>
+</div>
+</div>
+</div>
+<!--
+<header style="text-align:center; color:white;"><br/><br/>ROLGAME</header>
+-->
+
+<div class="mainBlock">
+<div class="estadisticas">
+Destruir bloques: <span id="destruir">10</span>
+<div class="nivel">Nivel: <span id="level">1</span></div>
+<div class="exp">Experiencia: <span id="exp">0</span></div>
+<div class="vida">Vida: <span id="vida">200</span></div>
+</div>
+<canvas id="lienzo" width="700px" height="500px"></canvas><br/>
+<div class="commandBar">
+Comando: <input type="text" id="comando" placeholder="Accion a realizar..."></input> <button id="accion" onclick="accion();">Ejecutar</button><button id="scene" onclick="newScene(); gameLoop(contexto);">Nuevo escenario</button><button style="margin-top:10px;" id="scene" onclick="describeScene(); gameLoop(contexto);">Descripcion escenario</button>
+</div>
+<!--
+<pre>
+
+
+COMANDO:				ACCION:
+ACEPTAR			ACEPTAR OPCION / CONTINUAR / INICIAR
+RIGHT			MOVER PERSONAJE A LA DERECHA UN ESPACIO
+UP			MOVER PERSONAJE HACIA ARRIBA UN ESPACIO
+DOWN			MOVER PERSONAJE HACIA ABAJO UN ESPACIO
+LEFT			MOVER PERSONAJE HACIA LA IZQUIERDA UN ESPACIO
+DESTROY LEFT		DESTRUIR BLOQUE A LA IZQUIERDA
+DESTROY RIGHT		DESTRUIR BLOQUE A LA DERECHA
+DESTROY UP		DESTRUIR BLOQUE HACIA ARRIBA
+DESTROY DOWN		DESTRUIR BLOQUE HACIA ABAJO
+KEEP			GUARDAR ITEM CERCANO(1 BLOQUE DE DISTANCIA)
+</pre>
+</div>
+<footer></footer>
+-->
+</body>
+<script>
+var canvas=document.getElementById('lienzo');
+var contexto=canvas.getContext('2d'); var playerStatus=200;
+var escenario=[];var enemigos=[]; contador=0; var clock;
+var posicionEne=0;var posicionPlayer; var attack=40;
+var historial=[]; var actual=''; var exper=0;
+var focus={}
+/**********************************************************************Nuevo escenario**/
+function newScene(){
+/*
+Bloque 0: Vacio			Blanco
+Bloque 1: Pared			Negro
+Bloque 2: Jugador		Azul
+Bloque 3: Item destruir		Verde
+Bloque 4: Enemigo		Rojo
+Bloque 5: Meta			Amarillo
+Bloque 6: Vida			rgb(107, 166, 241)
+Bloque 5: Enemigo v2		Purpura
+*/
+var items=0;
+for(var x=0;x<=3500;x++){
+escenario[x]=1;
+}
+for(var x=0; x<=30; x++){
+biome();
+}
+
+inicio=1; ancho=10; columnasPosibles=5;
+for(var x=0;x<=50;x++){
+columnas=Math.floor(Math.random()*columnasPosibles);
+escenario[inicio+Math.floor(Math.random()*ancho)+(columnas*70)]=0;}
+inicio=3480-70;
+ancho=20;
+columnasPosibles=5;
+for(var x=0;x<=50;x++){
+columnas=Math.floor(Math.random()*columnasPosibles);
+escenario[inicio+Math.floor(Math.random()*ancho)+(columnas*70)]=0;
+}
+
+escenario[73]=2; posicionPlayer=73;
+document.getElementById('comando').focus();
+for(var item=0; item<=3; item++){
+random=Math.floor(Math.random()*3500);
+escenario[random]=3;
+}
+generateEnemies();
+
+escenario[1]=3;
+escenario[3499]=5;
+escenario[Math.floor(Math.random()*2000+1500)]=6;
+escenario[Math.floor(Math.random()*2000+1500)]=6;
+escenario[Math.floor(Math.random()*2000+1500)]=6;
+document.getElementById('comando').onkeydown=function(e){movPer(e);};
+
+canvas.getContext('2d').translate(-posX,-posY);
+posX=0; posY=0;
+
+for(var aux=3500; aux<3710; aux++){
+escenario[aux]=1;
+}
+
+}
+/**********************************Control camara**/
+var posX=0,posY=0;
+function camara(direccion){
+realX=focus.x+posX;
+realY=focus.y+posY; velCam=10;
+if(direccion=='left'){
+if(realX>0&&realX<100&&posX<10){
+canvas.getContext('2d').translate(velCam,0); posX+=velCam;	}
+}
+if(direccion=='right'){
+if(realX<230&&realX>100&&!(posX<-460)){
+canvas.getContext('2d').translate(-velCam,0); posX-=velCam;	}
+}
+if(direccion=='bottom'){
+if(realY<160&&realY>70&&!(posY<-330)){
+canvas.getContext('2d').translate(0,-velCam); posY-=velCam;	}
+}
+if(direccion=='top'){
+if(realY>0&&realY<100&&posY<10){
+canvas.getContext('2d').translate(0,velCam); posY+=velCam;	}
+}
+
+}
+/***************************************************Funcion para generar enemigos***/
+function generateEnemies(){
+tipo=1;
+if(parseInt(level.innerHTML)>2) tipo=2;
+for(var enemigo=0; enemigo<=10; enemigo++){
+random=Math.floor(Math.random()*3500);
+
+if(enemigos.length<40){
+escenario[random]=4;
+enemigos[enemigos.length]={type:Math.ceil(Math.random()*tipo),pos:random};
+}
+
+}	}
+/*********************************************************************Manejo de experiencia*/
+function experiencia(add){
+exper+=add;
+if(Math.floor(exper/1000)>0){
+document.getElementById('level').innerHTML=Math.floor(exper/1000)+1;
+}
+document.getElementById('exp').innerHTML=exper;
+}
+/*********************************************************************Atacar enemigo*/
+function turno(){
+ataque=Math.floor(Math.random()*80);
+recibido=Math.floor(Math.random()*attack);
+document.getElementById('hitPlayer').value=ataque;
+document.getElementById('consola').innerHTML="<div>Has propinado un ataque de "+ataque+" a tu enemigo. Con un extra de: "+(20*parseInt(document.getElementById('level').innerHTML))+"</div>"+document.getElementById('consola').innerHTML;
+ataque+=(10*parseInt(document.getElementById('level').innerHTML));
+if(parseInt(document.getElementById('statusPlayer').innerHTML)-recibido<0){document.getElementById('consola').innerHTML='<div>Has perdido</div>'+document.getElementById('consola').innerHTML;window.location=window.location;}
+document.getElementById('statusPlayer').innerHTML=parseInt(document.getElementById('statusPlayer').innerHTML)-recibido;
+document.getElementById('vida').innerHTML=parseInt(document.getElementById('statusPlayer').innerHTML)-recibido;
+document.getElementById('consola').innerHTML="<div>Recibiste un ataque de "+recibido+" de tu enemigo.</div>"+document.getElementById('consola').innerHTML;
+document.getElementById('statusEnemy').innerHTML=parseInt(document.getElementById('statusEnemy').innerHTML)-ataque;
+
+if(parseInt(document.getElementById('statusEnemy').innerHTML)-ataque<0){
+playerStatus=parseInt(document.getElementById('statusPlayer').innerHTML);
+document.getElementById('consola').innerHTML='<div>Lo has derrotado</div>'+document.getElementById('consola').innerHTML; alert('Lo has derrotado'); document.getElementById('lightBox').style['display']='none';
+document.getElementById('comando').focus();
+enemigo2=enemigo(posicionEne); escenario[enemigos[enemigo2].pos]=0;
+enemigos[enemigo2].pos=-50;
+experiencia(150);
+document.getElementById('vida').innerHTML=playerStatus;
+clock=setInterval(function(){gameLoop(contexto);},50);
+}
+
+}
+/*********************************************************************Huir de enemigo*/
+function huir(){
+
+}
+/*********************************************************************Peleas contra enemigos*/
+function fight(posEnemigo,firstHit){
+clearInterval(clock);
+if(enemigos[enemigo(posEnemigo)].type==1) {document.getElementById('enemy').className='enemyNormal';
+document.getElementById('statusEnemy').innerHTML=200;
+attack=40;
+}
+if(enemigos[enemigo(posEnemigo)].type==2) {document.getElementById('enemy').className='enemyPurple';
+document.getElementById('statusEnemy').innerHTML=300;
+attack=70;
+}
+document.getElementById('lightBox').style['display']='block';
+document.getElementById('consola').innerHTML='';
+if(firstHit){
+document.getElementById('consola').innerHTML='<div>Has atacado primero...</div>'+document.getElementById('consola').innerHTML;
+document.getElementById('statusEnemy').innerHTML=parseInt(document.getElementById('statusEnemy').innerHTML)-50;
+}else{
+document.getElementById('consola').innerHTML='<div>Te ha sorprendido el enemigo</div>'+document.getElementById('consola').innerHTML;
+playerStatus-=20;
+document.getElementById('vida').innerHTML=playerStatus;
+}
+document.getElementById('statusPlayer').innerHTML=playerStatus;
+document.getElementById('hitPlayer').value='';
+document.getElementById('attack').focus();
+posicionEne=posEnemigo;
+}
+/*********************************************************************GameLoop*/
+function gameLoop(context){
+moveEnemies(); contador++;
+render(context); actualizacion();
+}
+/**********************************************************************Generar bioma**/
+function biome(){
+inicio=Math.floor(Math.random()*3500);
+ancho=30;
+columnasPosibles=5;
+for(var x=0;x<=250;x++){
+columnas=Math.floor(Math.random()*columnasPosibles);
+escenario[inicio+Math.floor(Math.random()*ancho)+(columnas*70)]=0;
+}
+
+}
+/**********************************************************************Mover enemigos**/
+function moveEnemies(){
+if(contador>=10){
+length=enemigos.length-1;
+for(var aux=0;aux<=length; aux++){ mov=false;
+
+while(!mov){ direccion=Math.floor(Math.random()*4); 
+
+/*Movimiento del enemigo*/
+if(direccion==0&&escenario[enemigos[aux].pos-1]==0){
+escenario[enemigos[aux].pos-1]=4; escenario[enemigos[aux].pos]=0;
+enemigos[aux].pos=enemigos[aux].pos-1;
+mov=true;
+}else if(direccion==1&&escenario[enemigos[aux].pos+1]==0){
+escenario[enemigos[aux].pos+1]=4; escenario[enemigos[aux].pos]=0;
+enemigos[aux].pos=enemigos[aux].pos+1;
+mov=true;
+}else if(direccion==2&&escenario[enemigos[aux].pos-70]==0){
+escenario[enemigos[aux].pos-70]=4; escenario[enemigos[aux].pos]=0;
+enemigos[aux].pos=enemigos[aux].pos-70;
+mov=true;
+}else if(direccion==3&&escenario[enemigos[aux].pos+70]==0){
+escenario[enemigos[aux].pos+70]=4; escenario[enemigos[aux].pos]=0;
+enemigos[aux].pos=enemigos[aux].pos+70;
+mov=true;
+}
+if(escenario[enemigos[aux].pos+70]!=0&&escenario[enemigos[aux].pos-70]!=0&&escenario[enemigos[aux].pos+1]!=0&&escenario[enemigos[aux].pos-1]!=0){mov=true;}
+/*console.log(mov+'_'+direccion);*/
+}
+
+/*Colision con el player*/
+if(escenario[enemigos[aux].pos-1]==2||escenario[enemigos[aux].pos+1]==2||escenario[enemigos[aux].pos-70]==2||escenario[enemigos[aux].pos+70]==2){
+tempEnemy=enemigos[aux].pos; render(contexto); alert("Has sido alcanzado por un enemigo..."); fight(enemigos[aux].pos,false);
+}	}
+
+contador=0;
+}
+
+
+}
+/**************Obtener el identificador del enemigo segun su posicion***************/
+function enemigo(posicion){
+leng=enemigos.length-1;
+for(var x2=0; x2<=leng; x2++){
+if(enemigos[x2].pos==posicion) return x2;
+}	}
+/**********************************************************************Render**/
+function render(ctx){
+length=escenario.length;
+ctx.fillStyle="black"; pos=0;
+ctx.fillRect(-10,-10,800,800);
+for(var y=0; y<length/7; y+=10){
+for(var x=0; x<700; x+=10){
+if(escenario[pos]==0) ctx.fillStyle="white";
+if(escenario[pos]==1) ctx.fillStyle="black";
+if(escenario[pos]==3) ctx.fillStyle="green";
+if(escenario[pos]==5) ctx.fillStyle="yellow";
+if(escenario[pos]==6) ctx.fillStyle="rgb(107, 166, 241)";
+
+if(escenario[pos]==4){
+enem=enemigo(pos);
+if(enemigos[enem].type==1) ctx.fillStyle="red";
+if(enemigos[enem].type==2) ctx.fillStyle="purple";
+}
+
+if(escenario[pos]==2) {
+ctx.fillStyle="blue";
+focus.x=x; focus.y=y;
+}
+ctx.fillRect(x,y,10,10); pos++;
+}
+}	}/*3710 bloques en total son colocados*/
+/*********************************************************************Ganar**/
+function win(){
+alert('Has ganado...'); newScene();
+}
+/**********************************************************************Actualizacion**/
+function actualizacion(){}
+/**********************************************************************Comandos lectura**/
+function accion(){
+comando=document.getElementById('comando').value;
+if(comando.toUpperCase()=='RIGHT'){
+if(escenario[posicionPlayer+1]==5) win();
+if(escenario[posicionPlayer+1]==4) alert('Enemigo encontrado');
+if(escenario[posicionPlayer+1]==1) return false;
+if(escenario[posicionPlayer+1]==3) return false;
+escenario[posicionPlayer]=0;
+escenario[posicionPlayer+1]=2;
+}
+if(comando.toUpperCase()=='LEFT'){
+if(escenario[posicionPlayer-1]==5) win();
+if(escenario[posicionPlayer-1]==4) alert('Enemigo encontrado');
+if(escenario[posicionPlayer-1]==1) return false;
+if(escenario[posicionPlayer-1]==3) return false;
+escenario[posicionPlayer]=0;
+escenario[posicionPlayer-1]=2;
+}
+if(comando.toUpperCase()=='DOWN'){
+if(escenario[posicionPlayer+70]==5) win();
+if(escenario[posicionPlayer+70]==4) alert('Enemigo encontrado');
+if(escenario[posicionPlayer+70]==1) return false;
+if(escenario[posicionPlayer+70]==3) return false;
+escenario[posicionPlayer]=0;
+escenario[posicionPlayer+70]=2;
+}
+if(comando.toUpperCase()=='UP'){
+if(escenario[posicionPlayer-70]==1) win();
+if(escenario[posicionPlayer-70]==4) alert('Enemigo encontrado');
+if(escenario[posicionPlayer-70]==1) return false;
+if(escenario[posicionPlayer-70]==3) return false;
+escenario[posicionPlayer]=0;
+escenario[posicionPlayer-70]=2;
+}
+if(comando.toUpperCase()=='DESTROY LEFT'||comando.toUpperCase()=='A'){
+if(document.getElementById('destruir').innerHTML<=0){alert("No tienes puntos para seguir destruyendo...");return false;}
+if(escenario[posicionPlayer-1]!=1) return false;
+escenario[posicionPlayer-1]=0;
+document.getElementById('destruir').innerHTML=document.getElementById('destruir').innerHTML-1;
+}
+if(comando.toUpperCase()=='DESTROY RIGHT'||comando.toUpperCase()=='D'){
+if(document.getElementById('destruir').innerHTML<=0){alert("No tienes puntos para seguir destruyendo...");return false;}
+if(escenario[posicionPlayer+1]!=1) return false;
+escenario[posicionPlayer+1]=0;
+document.getElementById('destruir').innerHTML=document.getElementById('destruir').innerHTML-1;
+}
+if(comando.toUpperCase()=='DESTROY UP'||comando.toUpperCase()=='W'){
+if(document.getElementById('destruir').innerHTML<=0){alert("No tienes puntos para seguir destruyendo...");return false;}
+if(escenario[posicionPlayer-70]!=1) return false;
+escenario[posicionPlayer-70]=0;
+document.getElementById('destruir').innerHTML=document.getElementById('destruir').innerHTML-1;
+}
+if(comando.toUpperCase()=='DESTROY DOWN'||comando.toUpperCase()=='S'){
+if(document.getElementById('destruir').innerHTML<=0){alert("No tienes puntos para seguir destruyendo...");return false;}
+if(escenario[posicionPlayer+70]!=1) return false;
+escenario[posicionPlayer+70]=0;
+document.getElementById('destruir').innerHTML=document.getElementById('destruir').innerHTML-1;
+}
+if(comando.toUpperCase()=='KEEP'||comando.toUpperCase()=='Q'){
+keep=false;
+if(escenario[posicionPlayer+70]==3) {alert("Item abajo obtenido, 2 puntos para destruir bloques obtenidos"); escenario[posicionPlayer+70]=0; keep=true;}
+if(escenario[posicionPlayer-70]==3) {alert("Item arriba obtenido, 2 puntos para destruir bloques obtenidos"); escenario[posicionPlayer-70]=0; keep=true;}
+if(escenario[posicionPlayer+1]==3) {alert("Item derecha obtenido, 2 puntos para destruir bloques obtenidos"); escenario[posicionPlayer+1]=0; keep=true;}
+if(escenario[posicionPlayer-1]==3) {alert("Item izquierda obtenido, 2 puntos para destruir bloques obtenidos"); escenario[posicionPlayer-1]=0; keep=true;}
+
+if(escenario[posicionPlayer+70]==6) {alert("50 puntos de vida obtenidos..."); escenario[posicionPlayer+70]=0; vida=true;}
+if(escenario[posicionPlayer-70]==6) {alert("50 puntos de vida obtenidos..."); escenario[posicionPlayer-70]=0; vida=true;}
+if(escenario[posicionPlayer+1]==6) {alert("50 puntos de vida obtenidos..."); escenario[posicionPlayer+1]=0; vida=true;}
+if(escenario[posicionPlayer-1]==6) {alert("50 puntos de vida obtenidos..."); escenario[posicionPlayer-1]=0; vida=true;}
+if(keep) document.getElementById('destruir').innerHTML=parseInt(document.getElementById('destruir').innerHTML)+2;
+if(vida){
+playerStatus+=50;
+document.getElementById('vida').innerHTML=playerStatus;
+vida=false;
+}
+
+}
+}
+
+document.getElementById('lienzo').addEventListener('click',function(e){
+document.getElementById('comando').focus();
+},true);
+/*********************************************************************Movimiento del personaje
+document.getElementById('comando').addEventListener('keyup',function(e){movPer(e);},true);*******************/
+/******Funcion mover personaje******/
+var moviendose=false;
+function movPer(e){
+moviendose=true;
+if(e.keyCode==37){
+if(focus.x-10<0) return false;
+if(escenario[posicionPlayer-1]==5) win();
+if(escenario[posicionPlayer-1]==4) {fight(posicionPlayer-1,true); return false;}
+if(escenario[posicionPlayer-1]==1) return false;
+if(escenario[posicionPlayer-1]==3) return false;
+if(escenario[posicionPlayer-1]==6) return false;
+if(!moviendose) return false;
+if(moviendose) moviendose=false;
+if(focus.x+posX>0){
+escenario[posicionPlayer-1]=2;
+escenario[posicionPlayer]=0;
+posicionPlayer-=1; focus.x-=10;
+}
+camara('left');
+}else if(e.keyCode==39){
+if(focus.x+10>690) return false;
+if(escenario[posicionPlayer+1]==5) win();
+if(escenario[posicionPlayer+1]==4) {fight(posicionPlayer+1,true); return false;}
+if(escenario[posicionPlayer+1]==1) return false;
+if(escenario[posicionPlayer+1]==3) return false;
+if(escenario[posicionPlayer+1]==6) return false;
+if(!moviendose) return false;
+if(moviendose) moviendose=false;
+if(focus.x+posX<225){
+escenario[posicionPlayer+1]=2;
+escenario[posicionPlayer]=0;  
+posicionPlayer+=1; focus.x+=10;
+}
+camara('right'); 
+}else if(e.keyCode==40){
+if(escenario[posicionPlayer+70]==5) win();
+if(escenario[posicionPlayer+70]==4) {fight(posicionPlayer+70,true); return false;}
+if(escenario[posicionPlayer+70]==1) return false;
+if(escenario[posicionPlayer+70]==3) return false;
+if(escenario[posicionPlayer+70]==6) return false;
+if(!moviendose) return false;
+if(moviendose) moviendose=false;
+escenario[posicionPlayer+70]=2;
+escenario[posicionPlayer]=0;  posicionPlayer+=70;
+focus.y+=10;
+camara('bottom'); 
+}else if(e.keyCode==38){
+if(focus.y-10<0) return false;
+if(escenario[posicionPlayer-70]==5) win();
+if(escenario[posicionPlayer-70]==4) {fight(posicionPlayer-70,true); return false;}
+if(escenario[posicionPlayer-70]==1) return false;
+if(escenario[posicionPlayer-70]==3) return false;
+if(escenario[posicionPlayer-70]==6) return false;
+if(!moviendose) return false;
+if(moviendose) moviendose=false;
+escenario[posicionPlayer-70]=2;
+escenario[posicionPlayer]=0;  posicionPlayer-=70;
+focus.y-=10;
+camara('top');
+}
+if(e.keyCode==13){
+document.getElementById('accion').click();
+document.getElementById('comando').value='';
+}
+
+}
+/***************************************************************Funcion para describir escenario***********/
+function describeScene(){
+
+}
+/**********************************************************************Bloque principal**/
+window.onload=function(){
+newScene(); canvas.getContext('2d').scale(3,3);
+clock=setInterval(function(){gameLoop(contexto);},50);
+}
+</script>
+</html>
+
+
